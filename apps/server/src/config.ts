@@ -24,7 +24,7 @@ function normalizeAgentMode(value: string | undefined): string {
   return normalized === "llm" ? "llm" : DEFAULT_AGENT_MODE;
 }
 
-export const PORT = parsePort(process.env.PORT);
+export const PORT = parsePort(process.env.PORT) || 3000;
 export const HOST = "0.0.0.0";
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
 export const AGENT_MODE = normalizeAgentMode(process.env.AGENT_MODE);
