@@ -1,5 +1,5 @@
 import express, { type ErrorRequestHandler, type Response } from "express";
-
+import cors from "cors";
 import { HOST, PORT } from "./config.js";
 import { requireAdminPassword } from "./middleware.js";
 import {
@@ -19,7 +19,7 @@ type PublicBattleState = Omit<BattleState, "queuedChallenges"> & {
 };
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
 
 function toPublicBattleState(state: BattleState): PublicBattleState {

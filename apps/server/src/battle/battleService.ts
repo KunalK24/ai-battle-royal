@@ -21,6 +21,16 @@ const MAX_CHALLENGE_TEXT_LENGTH = 1000;
 const MAX_COMPETITOR_COUNT = 24;
 
 let queueProcessor: Promise<void> | null = null;
+let nextBattleId = 1;
+let nextSkirmishId = 1;
+
+function createBattleId(): string {
+  return String(nextBattleId++);
+}
+
+function createSkirmishId(): string {
+  return String(nextSkirmishId++);
+}
 
 function createEvent(type: BattleEvent["type"], message: string): BattleEvent {
   return {
@@ -84,7 +94,7 @@ function createRunningSkirmish(input: {
   competitors: BattleCompetitor[];
 }): Skirmish {
   return {
-    id: randomUUID(),
+    id: createSkirmishId(),
     challengeId: input.challenge.id,
     competitorIds: input.competitors.map((competitor) => competitor.id),
     status: "running",
@@ -314,10 +324,11 @@ export function startBattle(): BattleState {
     }
 
     const competitorCount = state.config.competitorCount;
+    nextSkirmishId = 1;
 
     return {
       ...state,
-      battleId: randomUUID(),
+      battleId: createBattleId(),
       status: "active",
       competitors: createCompetitors(competitorCount),
       queuedChallenges: state.queuedChallenges.filter(
@@ -359,6 +370,7 @@ export function resetBattle(): BattleState {
     winnerCompetitorId: null,
   });
 
+  nextSkirmishId = 1;
   return nextState;
 }
 

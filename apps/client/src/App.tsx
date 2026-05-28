@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { BattleArenaPage } from "./components/BattleArenaPage";
 import { LoginPage } from "./components/LoginPage";
 import type { Session } from "./types/game";
 
@@ -43,7 +44,7 @@ function readStoredSession(): Session | null {
   }
 }
 
-function App() {
+export default function App() {
   const [session, setSession] = useState<Session | null>(() => readStoredSession());
 
   useEffect(() => {
@@ -60,16 +61,21 @@ function App() {
 
   const adminUsername = import.meta.env.VITE_ADMIN_USERNAME?.trim() || "admin";
 
+  if (!session) {
+    return (
+      <main className="app-shell">
+        <LoginPage
+          adminUsername={adminUsername}
+          onLogin={setSession}
+        />
+      </main>
+    );
+  }
+
   return (
-    <main className="app-shell">
-      <LoginPage
-        adminUsername={adminUsername}
-        session={session}
-        onLogin={setSession}
-        onLogout={() => setSession(null)}
-      />
-    </main>
+    <BattleArenaPage
+      session={session}
+      onLogout={() => setSession(null)}
+    />
   );
 }
-
-export default App;

@@ -42,14 +42,22 @@ async function requestJson<T>(
     method?: "GET" | "POST";
     body?: unknown;
     adminPassword?: string;
+    headers?: HeadersInit;
   } = {},
 ): Promise<T> {
+  const headers = new Headers(options.headers);
+
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (options.adminPassword && !headers.has("x-admin-password")) {
+    headers.set("x-admin-password", options.adminPassword);
+  }
+
   const response = await fetch(buildUrl(path), {
     method: options.method ?? "GET",
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.adminPassword ? { "x-admin-password": options.adminPassword } : {}),
-    },
+    headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
