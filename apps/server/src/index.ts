@@ -11,6 +11,7 @@ import {
   submitChallenge,
 } from "./battle/battleService.js";
 import type { BattleState, Challenge } from "./types.js";
+import { AGENT_MODE, OPENAI_MODEL } from "./config.js";
 
 type PublicChallenge = Omit<Challenge, "expectedAnswer">;
 
@@ -45,7 +46,11 @@ function readTextField(value: unknown): string {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+  ok: true,
+  agentMode: AGENT_MODE,
+  model: OPENAI_MODEL,
+});
 });
 
 app.get("/api/state", (_req, res) => {
