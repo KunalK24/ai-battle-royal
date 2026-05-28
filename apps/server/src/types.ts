@@ -27,7 +27,7 @@ export type BattleCompetitor = {
   status: CompetitorStatus;
 };
 
-export type ChallengeStatus = "queued";
+export type ChallengeStatus = "queued" | "running" | "completed" | "canceled";
 
 export type Challenge = {
   id: string;
@@ -42,7 +42,23 @@ export type BattleEventType =
   | "battle_configured"
   | "battle_started"
   | "battle_reset"
-  | "challenge_queued";
+  | "challenge_queued"
+  | "skirmish_started"
+  | "skirmish_completed"
+  | "battle_finished";
+
+export type SkirmishStatus = "running" | "completed" | "canceled";
+
+export type Skirmish = {
+  id: string;
+  challengeId: string;
+  competitorIds: string[];
+  status: SkirmishStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  results: AgentResult[];
+  decision: EliminationDecision | null;
+};
 
 export type BattleEvent = {
   id: string;
@@ -61,6 +77,7 @@ export type BattleState = {
   config: BattleConfig;
   competitors: BattleCompetitor[];
   queuedChallenges: Challenge[];
+  skirmishes: Skirmish[];
   eventLog: BattleEvent[];
   startedAt: string | null;
   finishedAt: string | null;

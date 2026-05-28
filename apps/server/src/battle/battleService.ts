@@ -6,14 +6,21 @@ import type {
   BattleEvent,
   BattleState,
   Challenge,
+  ChallengeStatus,
+  Skirmish,
 } from "../types.js";
 import {
+  selectAliveCompetitors,
   selectCanConfigureBattle,
   selectHasActiveBattle,
+  selectRandomSkirmishCompetitors,
 } from "./selectors.js";
+import { runSkirmish } from "./skirmishRunner.js";
 
 const MAX_CHALLENGE_TEXT_LENGTH = 1000;
 const MAX_COMPETITOR_COUNT = 24;
+
+let queueProcessor: Promise<void> | null = null;
 
 function createEvent(type: BattleEvent["type"], message: string): BattleEvent {
   return {
@@ -40,6 +47,15 @@ function trimOrThrow(value: string, fieldName: string): string {
   return trimmed;
 }
 
+function normalizeSubmittedBy(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return "Anonymous";
+  }
+
+  return trimmed.slice(0, 40);
+}
+
 function validateChallengeText(value: string, fieldName: string): string {
   const trimmed = trimOrThrow(value, fieldName);
   if (trimmed.length > MAX_CHALLENGE_TEXT_LENGTH) {
@@ -63,6 +79,22 @@ function createChallenge(input: {
   };
 }
 
+function createRunningSkirmish(input: {
+  challenge: Challenge;
+  competitors: BattleCompetitor[];
+}): Skirmish {
+  return {
+    id: randomUUID(),
+    challengeId: input.challenge.id,
+    competitorIds: input.competitors.map((competitor) => competitor.id),
+    status: "running",
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    results: [],
+    decision: null,
+  };
+}
+
 function assertCanConfigureBattle(state: BattleState): void {
   if (!selectCanConfigureBattle(state)) {
     throw new Error("Battle configuration cannot be changed while active.");
@@ -72,6 +104,174 @@ function assertCanConfigureBattle(state: BattleState): void {
 function assertBattleNotActive(state: BattleState): void {
   if (selectHasActiveBattle(state)) {
     throw new Error("Battle is already active.");
+  }
+}
+
+function selectQueuedChallenge(state: BattleState): Challenge | undefined {
+  return state.queuedChallenges.find((challenge) => challenge.status === "queued");
+}
+
+function hasRunningSkirmish(state: BattleState): boolean {
+  return state.skirmishes.some((skirmish) => skirmish.status === "running");
+}
+
+function finalizeBattleIfNeeded(state: BattleState): BattleState {
+  const aliveCompetitors = selectAliveCompetitors(state);
+
+  if (aliveCompetitors.length !== 1) {
+    return state;
+  }
+
+  const winner = aliveCompetitors[0];
+
+  return {
+    ...state,
+    status: "finished",
+    finishedAt: new Date().toISOString(),
+    winnerCompetitorId: winner.id,
+    eventLog: [
+      ...state.eventLog,
+      createEvent("battle_finished", `Battle finished. ${winner.name} is the winner.`),
+    ],
+  };
+}
+
+function applySkirmishOutcome(
+  state: BattleState,
+  runningSkirmish: Skirmish,
+  results: Skirmish["results"],
+  decision: NonNullable<Skirmish["decision"]>,
+): BattleState {
+  const finishedAt = new Date().toISOString();
+  const challengeStatus: ChallengeStatus = decision.canceled
+    ? "canceled"
+    : "completed";
+  const updatedChallenges = state.queuedChallenges.map((challenge) =>
+    challenge.id === runningSkirmish.challengeId
+      ? {
+          ...challenge,
+          status: challengeStatus,
+        }
+      : challenge,
+  );
+  const completedSkirmish: Skirmish = {
+    ...runningSkirmish,
+    status: decision.canceled ? "canceled" : "completed",
+    finishedAt,
+    results,
+    decision,
+  };
+
+  const nextCompetitors = decision.canceled
+    ? state.competitors
+    : state.competitors.map((competitor) =>
+        decision.eliminatedCompetitorIds.includes(competitor.id)
+          ? { ...competitor, status: "eliminated" as const }
+          : competitor,
+      );
+
+  const nextState: BattleState = {
+    ...state,
+    competitors: nextCompetitors,
+    queuedChallenges: updatedChallenges,
+    skirmishes: state.skirmishes.map((skirmish) =>
+      skirmish.id === runningSkirmish.id ? completedSkirmish : skirmish,
+    ),
+    eventLog: [
+      ...state.eventLog,
+      createEvent(
+        "skirmish_completed",
+        decision.canceled
+          ? `Skirmish canceled: ${decision.reason}`
+          : `Skirmish completed. Eliminated ${decision.eliminatedCompetitorIds.join(", ")}.`,
+      ),
+    ],
+  };
+
+  return finalizeBattleIfNeeded(nextState);
+}
+
+function requestQueueProcessing(): void {
+  if (queueProcessor) {
+    return;
+  }
+
+  queueProcessor = processBattleQueue()
+    .catch((error: unknown) => {
+      console.error(error);
+    })
+    .finally(() => {
+      queueProcessor = null;
+
+      const state = getBattleState();
+      if (state.status === "active" && state.queuedChallenges.some((challenge) => challenge.status === "queued")) {
+        requestQueueProcessing();
+      }
+    });
+}
+
+async function processBattleQueue(): Promise<void> {
+  while (true) {
+    const snapshot = getBattleState();
+
+    if (snapshot.status !== "active") {
+      return;
+    }
+
+    if (hasRunningSkirmish(snapshot)) {
+      return;
+    }
+
+    const aliveCompetitors = selectAliveCompetitors(snapshot);
+    if (aliveCompetitors.length <= 1) {
+      updateBattleState((state) => finalizeBattleIfNeeded(state));
+      return;
+    }
+
+    const nextChallenge = selectQueuedChallenge(snapshot);
+    if (!nextChallenge) {
+      return;
+    }
+
+    const skirmishCompetitors = selectRandomSkirmishCompetitors(snapshot);
+    if (skirmishCompetitors.length < 2) {
+      return;
+    }
+
+    const runningSkirmish = createRunningSkirmish({
+      challenge: nextChallenge,
+      competitors: skirmishCompetitors,
+    });
+    const battleId = snapshot.battleId;
+
+    updateBattleState((state) => ({
+      ...state,
+      queuedChallenges: state.queuedChallenges.map((challenge) =>
+        challenge.id === nextChallenge.id
+          ? { ...challenge, status: "running" as const }
+          : challenge,
+      ),
+      skirmishes: [...state.skirmishes, runningSkirmish],
+      eventLog: [
+        ...state.eventLog,
+        createEvent(
+          "skirmish_started",
+          `Skirmish ${runningSkirmish.id} started with ${skirmishCompetitors.length} competitors.`,
+        ),
+      ],
+    }));
+
+    const { results, decision } = await runSkirmish({
+      challenge: nextChallenge,
+      competitors: skirmishCompetitors,
+    });
+
+    const currentState = getBattleState();
+    if (currentState.battleId !== battleId || currentState.status !== "active") {
+      return;
+    }
+
+    updateBattleState((state) => applySkirmishOutcome(state, runningSkirmish, results, decision));
   }
 }
 
@@ -106,12 +306,13 @@ export function configureBattle(competitorCount: number): BattleState {
 }
 
 export function startBattle(): BattleState {
-  return updateBattleState((state) => {
+  const nextState = updateBattleState((state) => {
     assertBattleNotActive(state);
 
     if (state.config.competitorCount === null) {
       throw new Error("Battle must be configured before it can start.");
     }
+
     const competitorCount = state.config.competitorCount;
 
     return {
@@ -119,6 +320,10 @@ export function startBattle(): BattleState {
       battleId: randomUUID(),
       status: "active",
       competitors: createCompetitors(competitorCount),
+      queuedChallenges: state.queuedChallenges.filter(
+        (challenge) => challenge.status === "queued",
+      ),
+      skirmishes: [],
       startedAt: new Date().toISOString(),
       finishedAt: null,
       winnerCompetitorId: null,
@@ -131,16 +336,20 @@ export function startBattle(): BattleState {
       ],
     };
   });
+
+  requestQueueProcessing();
+  return nextState;
 }
 
 export function resetBattle(): BattleState {
   const previousState = getBattleState();
-  return setBattleState({
+  const nextState = setBattleState({
     battleId: null,
     status: "waiting",
     config: previousState.config,
     competitors: [],
     queuedChallenges: [],
+    skirmishes: [],
     eventLog: [
       ...previousState.eventLog,
       createEvent("battle_reset", "Battle was reset."),
@@ -149,6 +358,8 @@ export function resetBattle(): BattleState {
     finishedAt: null,
     winnerCompetitorId: null,
   });
+
+  return nextState;
 }
 
 export function submitChallenge(input: {
@@ -156,16 +367,16 @@ export function submitChallenge(input: {
   question: string;
   expectedAnswer: string;
 }): BattleState {
-  const submittedBy = trimOrThrow(input.submittedBy, "submittedBy");
+  const submittedBy = normalizeSubmittedBy(input.submittedBy);
   const question = validateChallengeText(input.question, "question");
   const expectedAnswer = validateChallengeText(
     input.expectedAnswer,
     "expectedAnswer",
   );
 
-  return updateBattleState((state) => {
+  const nextState = updateBattleState((state) => {
     const challenge = createChallenge({
-      submittedBy,
+      submittedBy: normalizeSubmittedBy(input.submittedBy),
       question,
       expectedAnswer,
     });
@@ -183,4 +394,10 @@ export function submitChallenge(input: {
       ],
     };
   });
+
+  if (nextState.status === "active") {
+    requestQueueProcessing();
+  }
+
+  return nextState;
 }

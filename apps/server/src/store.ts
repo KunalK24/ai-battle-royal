@@ -1,4 +1,18 @@
-import type { BattleState } from "./types.js";
+import type { BattleState, Skirmish } from "./types.js";
+
+function cloneSkirmish(skirmish: Skirmish): Skirmish {
+  return {
+    ...skirmish,
+    competitorIds: [...skirmish.competitorIds],
+    results: skirmish.results.map((result) => ({ ...result })),
+    decision: skirmish.decision
+      ? {
+          ...skirmish.decision,
+          eliminatedCompetitorIds: [...skirmish.decision.eliminatedCompetitorIds],
+        }
+      : null,
+  };
+}
 
 function cloneBattleState(state: BattleState): BattleState {
   return {
@@ -8,6 +22,7 @@ function cloneBattleState(state: BattleState): BattleState {
     queuedChallenges: state.queuedChallenges.map((challenge) => ({
       ...challenge,
     })),
+    skirmishes: state.skirmishes.map(cloneSkirmish),
     eventLog: state.eventLog.map((event) => ({ ...event })),
   };
 }
@@ -21,6 +36,7 @@ function createInitialBattleState(): BattleState {
     },
     competitors: [],
     queuedChallenges: [],
+    skirmishes: [],
     eventLog: [],
     startedAt: null,
     finishedAt: null,
