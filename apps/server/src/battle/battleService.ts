@@ -362,6 +362,30 @@ export function resetBattle(): BattleState {
   return nextState;
 }
 
+export function clearQueuedChallenges(): BattleState {
+  return updateBattleState((state) => {
+    const queuedCount = state.queuedChallenges.filter(
+      (challenge) => challenge.status === "queued",
+    ).length;
+
+    return {
+      ...state,
+      queuedChallenges: state.queuedChallenges.filter(
+        (challenge) => challenge.status !== "queued",
+      ),
+      eventLog: [
+        ...state.eventLog,
+        createEvent(
+          "queue_cleared",
+          queuedCount === 0
+            ? "No queued challenges were waiting."
+            : `Cleared ${queuedCount} queued challenge${queuedCount === 1 ? "" : "s"}.`,
+        ),
+      ],
+    };
+  });
+}
+
 export function submitChallenge(input: {
   submittedBy: string;
   question: string;

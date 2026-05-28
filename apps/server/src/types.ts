@@ -42,6 +42,7 @@ export type BattleEventType =
   | "battle_configured"
   | "battle_started"
   | "battle_reset"
+  | "queue_cleared"
   | "challenge_queued"
   | "skirmish_started"
   | "skirmish_completed"
