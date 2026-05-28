@@ -4,10 +4,11 @@ import type { Session } from "../types/game";
 
 type LoginPageProps = {
   adminUsername: string;
+  notice?: string | null;
   onLogin: (session: Session) => void;
 };
 
-export function LoginPage({ adminUsername, onLogin }: LoginPageProps) {
+export function LoginPage({ adminUsername, notice, onLogin }: LoginPageProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,8 @@ export function LoginPage({ adminUsername, onLogin }: LoginPageProps) {
           Enter a username to continue. If the username matches the admin account,
           the page will ask for the admin password.
         </p>
+
+        {notice ? <p className="field-error">{notice}</p> : null}
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="field">

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   clearQueuedChallenges,
   configureBattle,
+  ApiError,
   getAvailableModels,
   resetBattle,
   startBattle,
@@ -22,6 +23,7 @@ import { SkirmishFeed } from "./SkirmishFeed";
 
 type BattleArenaPageProps = {
   session: Session;
+  onAuthExpired: (message: string) => void;
   onLogout: () => void;
 };
 
@@ -32,7 +34,7 @@ function buildLookup<T extends { id: string }>(items: T[]) {
   }, {});
 }
 
-export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
+export function BattleArenaPage({ session, onAuthExpired, onLogout }: BattleArenaPageProps) {
   const { battleState, isLoading, error: pollingError, lastUpdatedAt, refresh } = useBattlePolling();
   const [actionError, setActionError] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>(["gpt-4.1"]);
@@ -76,6 +78,11 @@ export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
       await action();
       await refresh();
     } catch (nextError) {
+      if (nextError instanceof ApiError && nextError.status === 401) {
+        onAuthExpired("Your admin session expired. Please log in again.");
+        return;
+      }
+
       setActionError(
         nextError instanceof Error ? nextError.message : "Action failed.",
       );

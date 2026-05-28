@@ -36,6 +36,16 @@ async function readErrorMessage(response: Response): Promise<string> {
   return response.statusText || "Request failed";
 }
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function requestJson<T>(
   path: string,
   options: {
@@ -62,7 +72,7 @@ async function requestJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    throw new ApiError(response.status, await readErrorMessage(response));
   }
 
   return (await response.json()) as T;

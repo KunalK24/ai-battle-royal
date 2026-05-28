@@ -5,6 +5,7 @@ import { LoginPage } from "./components/LoginPage";
 import type { Session } from "./types/game";
 
 const SESSION_STORAGE_KEY = "ai-battle-royale.session";
+const ADMIN_PASSWORD_STORAGE_KEY = "ai-battle-royale.admin-password";
 
 function readStoredSession(): Session | null {
   if (typeof window === "undefined") {
@@ -26,11 +27,12 @@ function readStoredSession(): Session | null {
     }
 
     if (parsed.role === "admin") {
-      return typeof parsed.adminPassword === "string"
+      const adminPassword = window.sessionStorage.getItem(ADMIN_PASSWORD_STORAGE_KEY);
+      return typeof adminPassword === "string" && adminPassword.length > 0
         ? {
             role: "admin",
             username: parsed.username,
-            adminPassword: parsed.adminPassword,
+            adminPassword,
           }
         : null;
     }
@@ -46,6 +48,7 @@ function readStoredSession(): Session | null {
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(() => readStoredSession());
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -53,20 +56,47 @@ export default function App() {
     }
 
     if (session) {
-      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      if (session.role === "admin") {
+        window.localStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify({
+            role: "admin",
+            username: session.username,
+          }),
+        );
+        window.sessionStorage.setItem(ADMIN_PASSWORD_STORAGE_KEY, session.adminPassword);
+      } else {
+        window.localStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify(session),
+        );
+        window.sessionStorage.removeItem(ADMIN_PASSWORD_STORAGE_KEY);
+      }
     } else {
       window.localStorage.removeItem(SESSION_STORAGE_KEY);
+      window.sessionStorage.removeItem(ADMIN_PASSWORD_STORAGE_KEY);
     }
   }, [session]);
 
   const adminUsername = import.meta.env.VITE_ADMIN_USERNAME?.trim() || "admin";
+
+  const handleLogin = (nextSession: Session) => {
+    setAuthNotice(null);
+    setSession(nextSession);
+  };
+
+  const handleLogout = () => {
+    setAuthNotice(null);
+    setSession(null);
+  };
 
   if (!session) {
     return (
       <main className="app-shell">
         <LoginPage
           adminUsername={adminUsername}
-          onLogin={setSession}
+          notice={authNotice}
+          onLogin={handleLogin}
         />
       </main>
     );
@@ -75,7 +105,11 @@ export default function App() {
   return (
     <BattleArenaPage
       session={session}
-      onLogout={() => setSession(null)}
+      onAuthExpired={(message) => {
+        setSession(null);
+        setAuthNotice(message);
+      }}
+      onLogout={handleLogout}
     />
   );
 }
