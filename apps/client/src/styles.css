@@ -125,7 +125,8 @@ h1 {
   text-transform: uppercase;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   padding: 0.9rem 1rem;
   border: 1px solid var(--panel-border);
@@ -135,7 +136,8 @@ h1 {
   outline: none;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   border-color: rgba(143, 124, 247, 0.7);
   box-shadow: 0 0 0 4px rgba(143, 124, 247, 0.14);
 }
@@ -401,6 +403,7 @@ h1 {
 }
 
 .field input,
+.field select,
 .field textarea {
   width: 100%;
   padding: 0.9rem 1rem;
@@ -417,12 +420,14 @@ h1 {
 }
 
 .field input:focus,
+.field select:focus,
 .field textarea:focus {
   border-color: rgba(143, 124, 247, 0.7);
   box-shadow: 0 0 0 4px rgba(143, 124, 247, 0.14);
 }
 
 .field input:disabled,
+.field select:disabled,
 .field textarea:disabled,
 .button:disabled {
   opacity: 0.55;

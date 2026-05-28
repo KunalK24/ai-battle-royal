@@ -11,7 +11,7 @@ import {
   submitChallenge,
 } from "./battle/battleService.js";
 import type { BattleState, Challenge } from "./types.js";
-import { AGENT_MODE, OPENAI_MODEL } from "./config.js";
+import { AGENT_MODE, DEFAULT_COMPETITOR_MODEL, OPENAI_MODELS } from "./config.js";
 
 type PublicChallenge = Omit<Challenge, "expectedAnswer">;
 
@@ -47,10 +47,17 @@ function readTextField(value: unknown): string {
 
 app.get("/api/health", (_req, res) => {
   res.json({
-  ok: true,
-  agentMode: AGENT_MODE,
-  model: OPENAI_MODEL,
+    ok: true,
+    agentMode: AGENT_MODE,
+    defaultModel: DEFAULT_COMPETITOR_MODEL,
+    allowedModels: OPENAI_MODELS,
+  });
 });
+
+app.get("/api/models", (_req, res) => {
+  res.json({
+    models: OPENAI_MODELS,
+  });
 });
 
 app.get("/api/state", (_req, res) => {
@@ -73,7 +80,7 @@ app.post("/api/challenges", (req, res) => {
 
 app.post("/api/admin/config", requireAdminPassword, (req, res) => {
   try {
-    const nextState = configureBattle(Number(req.body?.competitorCount));
+    const nextState = configureBattle(Array.isArray(req.body?.competitorConfigs) ? req.body.competitorConfigs : []);
     res.json(toPublicBattleState(nextState));
   } catch (error) {
     respondWithError(res, error);

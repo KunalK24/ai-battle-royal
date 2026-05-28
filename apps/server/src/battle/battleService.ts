@@ -3,12 +3,14 @@ import { randomUUID } from "node:crypto";
 import { getBattleState, setBattleState, updateBattleState } from "../store.js";
 import type {
   BattleCompetitor,
+  BattleCompetitorConfig,
   BattleEvent,
   BattleState,
   Challenge,
   ChallengeStatus,
   Skirmish,
 } from "../types.js";
+import { DEFAULT_COMPETITOR_MODEL, OPENAI_MODELS } from "../config.js";
 import {
   selectAliveCompetitors,
   selectCanConfigureBattle,
@@ -18,6 +20,7 @@ import {
 import { runSkirmish } from "./skirmishRunner.js";
 
 const MAX_CHALLENGE_TEXT_LENGTH = 1000;
+const MAX_COMPETITOR_NAME_LENGTH = 40;
 const MAX_COMPETITOR_COUNT = 24;
 
 let queueProcessor: Promise<void> | null = null;
@@ -41,20 +44,13 @@ function createEvent(type: BattleEvent["type"], message: string): BattleEvent {
   };
 }
 
-function createCompetitors(count: number): BattleCompetitor[] {
-  return Array.from({ length: count }, (_value, index) => ({
+function createCompetitors(configs: BattleCompetitorConfig[]): BattleCompetitor[] {
+  return configs.map((config) => ({
     id: randomUUID(),
-    name: `Competitor ${index + 1}`,
+    name: config.name,
+    model: config.model,
     status: "alive" as const,
   }));
-}
-
-function trimOrThrow(value: string, fieldName: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${fieldName} is required.`);
-  }
-  return trimmed;
 }
 
 function normalizeSubmittedBy(value: string): string {
@@ -67,11 +63,55 @@ function normalizeSubmittedBy(value: string): string {
 }
 
 function validateChallengeText(value: string, fieldName: string): string {
-  const trimmed = trimOrThrow(value, fieldName);
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`${fieldName} is required.`);
+  }
   if (trimmed.length > MAX_CHALLENGE_TEXT_LENGTH) {
     throw new Error(`${fieldName} must be 1,000 characters or fewer.`);
   }
   return trimmed;
+}
+
+function normalizeCompetitorName(value: unknown, index: number): string {
+  if (typeof value !== "string") {
+    throw new Error(`Competitor ${index + 1} name is required.`);
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`Competitor ${index + 1} name is required.`);
+  }
+
+  return trimmed.slice(0, MAX_COMPETITOR_NAME_LENGTH);
+}
+
+function normalizeCompetitorModel(value: unknown, index: number): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return DEFAULT_COMPETITOR_MODEL;
+  }
+
+  const model = value.trim();
+  if (!OPENAI_MODELS.includes(model)) {
+    throw new Error(
+      `Competitor ${index + 1} model must be one of: ${OPENAI_MODELS.join(", ")}.`,
+    );
+  }
+
+  return model;
+}
+
+function normalizeCompetitorConfigs(
+  competitorConfigs: Array<{ name?: unknown; model?: unknown }>,
+): BattleCompetitorConfig[] {
+  if (competitorConfigs.length < 2 || competitorConfigs.length > MAX_COMPETITOR_COUNT) {
+    throw new Error("competitorConfigs must contain between 2 and 24 competitors.");
+  }
+
+  return competitorConfigs.map((competitorConfig, index) => ({
+    name: normalizeCompetitorName(competitorConfig.name, index),
+    model: normalizeCompetitorModel(competitorConfig.model, index),
+  }));
 }
 
 function createChallenge(input: {
@@ -289,26 +329,20 @@ export function getBattleSnapshot(): BattleState {
   return getBattleState();
 }
 
-export function configureBattle(competitorCount: number): BattleState {
-  if (
-    !Number.isInteger(competitorCount) ||
-    competitorCount < 2 ||
-    competitorCount > MAX_COMPETITOR_COUNT
-  ) {
-    throw new Error("competitorCount must be an integer between 2 and 24.");
-  }
-
+export function configureBattle(competitorConfigs: Array<{ name?: unknown; model?: unknown }>): BattleState {
   return updateBattleState((state) => {
     assertCanConfigureBattle(state);
 
+    const normalizedCompetitorConfigs = normalizeCompetitorConfigs(competitorConfigs);
+
     return {
       ...state,
-      config: { competitorCount },
+      config: { competitorConfigs: normalizedCompetitorConfigs },
       eventLog: [
         ...state.eventLog,
         createEvent(
           "battle_configured",
-          `Battle configured for ${competitorCount} competitors.`,
+          `Battle configured for ${normalizedCompetitorConfigs.length} competitors.`,
         ),
       ],
     };
@@ -319,18 +353,18 @@ export function startBattle(): BattleState {
   const nextState = updateBattleState((state) => {
     assertBattleNotActive(state);
 
-    if (state.config.competitorCount === null) {
+    if (state.config.competitorConfigs === null) {
       throw new Error("Battle must be configured before it can start.");
     }
 
-    const competitorCount = state.config.competitorCount;
+    const competitorConfigs = state.config.competitorConfigs;
     nextSkirmishId = 1;
 
     return {
       ...state,
       battleId: createBattleId(),
       status: "active",
-      competitors: createCompetitors(competitorCount),
+      competitors: createCompetitors(competitorConfigs),
       queuedChallenges: state.queuedChallenges.filter(
         (challenge) => challenge.status === "queued",
       ),
@@ -342,7 +376,7 @@ export function startBattle(): BattleState {
         ...state.eventLog,
         createEvent(
           "battle_started",
-          `Battle started with ${competitorCount} competitors.`,
+          `Battle started with ${competitorConfigs.length} competitors.`,
         ),
       ],
     };

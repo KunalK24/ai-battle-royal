@@ -24,7 +24,13 @@ export type CompetitorStatus = "alive" | "eliminated";
 export type BattleCompetitor = {
   id: string;
   name: string;
+  model: string;
   status: CompetitorStatus;
+};
+
+export type BattleCompetitorConfig = {
+  name: string;
+  model: string;
 };
 
 export type ChallengeStatus = "queued" | "running" | "completed" | "canceled";
@@ -69,7 +75,7 @@ export type BattleEvent = {
 };
 
 export type BattleConfig = {
-  competitorCount: number | null;
+  competitorConfigs: BattleCompetitorConfig[] | null;
 };
 
 export type BattleState = {

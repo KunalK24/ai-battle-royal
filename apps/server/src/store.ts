@@ -17,7 +17,13 @@ function cloneSkirmish(skirmish: Skirmish): Skirmish {
 function cloneBattleState(state: BattleState): BattleState {
   return {
     ...state,
-    config: { ...state.config },
+    config: {
+      ...state.config,
+      competitorConfigs:
+        state.config.competitorConfigs?.map((competitorConfig) => ({
+          ...competitorConfig,
+        })) ?? null,
+    },
     competitors: state.competitors.map((competitor) => ({ ...competitor })),
     queuedChallenges: state.queuedChallenges.map((challenge) => ({
       ...challenge,
@@ -32,7 +38,7 @@ function createInitialBattleState(): BattleState {
     battleId: null,
     status: "waiting",
     config: {
-      competitorCount: null,
+      competitorConfigs: null,
     },
     competitors: [],
     queuedChallenges: [],

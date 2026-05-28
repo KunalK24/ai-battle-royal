@@ -61,11 +61,29 @@ function collectOutput(maxBytes: number) {
   };
 }
 
+function buildChildEnvironment(): NodeJS.ProcessEnv {
+  const systemRoot = process.env.SYSTEMROOT ?? process.env.SystemRoot ?? "";
+  const windir = process.env.WINDIR ?? process.env.Windir ?? systemRoot;
+  const comspec = process.env.COMSPEC ?? process.env.ComSpec ?? "";
+
+  return {
+    SYSTEMROOT: systemRoot,
+    SystemRoot: systemRoot,
+    WINDIR: windir,
+    Windir: windir,
+    COMSPEC: comspec,
+    ComSpec: comspec,
+    TEMP: process.env.TEMP ?? "",
+    TMP: process.env.TMP ?? "",
+  };
+}
+
 async function runPythonCommand(
   command: string,
   codeFilePath: string,
   timeoutMs: number,
   maxOutputBytes: number,
+  useShellFallback = false,
 ): Promise<CommandAttemptResult> {
   return await new Promise((resolve) => {
     const output = collectOutput(maxOutputBytes);
@@ -74,7 +92,8 @@ async function runPythonCommand(
 
     const child = spawn(command, [codeFilePath], {
       stdio: ["ignore", "pipe", "pipe"],
-      env: {},
+      env: buildChildEnvironment(),
+      shell: useShellFallback,
       windowsHide: true,
     });
 
@@ -106,6 +125,13 @@ async function runPythonCommand(
           stderr: "",
           commandNotFound: true,
         });
+        return;
+      }
+
+      if (error.code === "EPERM" && !useShellFallback && process.platform === "win32") {
+        void runPythonCommand(command, codeFilePath, timeoutMs, maxOutputBytes, true).then(
+          resolve,
+        );
         return;
       }
 

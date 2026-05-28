@@ -1,6 +1,12 @@
 import OpenAI from "openai";
 
-import { CODE_TIMEOUT_MS, MAX_GENERATED_CODE_CHARS, MAX_OUTPUT_BYTES, OPENAI_API_KEY, OPENAI_MODEL } from "../config.js";
+import {
+  CODE_TIMEOUT_MS,
+  DEFAULT_COMPETITOR_MODEL,
+  MAX_GENERATED_CODE_CHARS,
+  MAX_OUTPUT_BYTES,
+  OPENAI_API_KEY,
+} from "../config.js";
 import type { AgentResult, BattleCompetitor, Challenge } from "../types.js";
 import { executePythonCode } from "../execution/codeExecutor.js";
 import { buildLlmPrompt, stripMarkdownFences } from "./prompts.js";
@@ -66,7 +72,7 @@ export async function runLlmAgent(input: {
   try {
     const response = await client.responses.create(
       {
-        model: OPENAI_MODEL,
+        model: input.competitor.model || DEFAULT_COMPETITOR_MODEL,
         instructions: prompt.developer,
         input: prompt.user,
       },

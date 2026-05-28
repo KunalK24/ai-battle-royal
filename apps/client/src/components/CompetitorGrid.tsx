@@ -43,6 +43,7 @@ export function CompetitorGrid({
                   <span className={`competitor-dot competitor-dot--${getCompetitorTone(competitor.status)}`} aria-label={competitor.status} />
                 </div>
                 <p className="muted mono">{competitor.id.slice(0, 8)}</p>
+                <p className="muted">Model: {competitor.model}</p>
                 {isWinner ? <p className="winner-note">Winner</p> : null}
               </article>
             );

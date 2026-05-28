@@ -218,7 +218,6 @@ From repo root:
 npm run dev:server
 npm run dev:client
 npm run build
-npm test
 ```
 
 From `apps/server`:
@@ -226,7 +225,6 @@ From `apps/server`:
 ```bash
 npm run dev
 npm run build
-npm test
 ```
 
 From `apps/client`:
@@ -284,7 +282,7 @@ For backend changes, run the server build.
 
 For frontend changes, run the client build.
 
-For full-stack changes, run root-level build/test commands if available.
+For full-stack changes, run root-level build commands if available.
 
 ## Non-goals
 

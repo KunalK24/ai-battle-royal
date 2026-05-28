@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   clearQueuedChallenges,
   configureBattle,
+  getAvailableModels,
   resetBattle,
   startBattle,
   submitChallenge,
 } from "../api";
 import { useBattlePolling } from "../hooks/useBattlePolling";
-import type { Session } from "../types/game";
+import type { BattleCompetitorConfig, Session } from "../types/game";
 import { AdminPanel } from "./AdminPanel";
 import { Badge } from "./Badge";
 import { BattleStatusPanel } from "./BattleStatusPanel";
@@ -34,6 +35,27 @@ function buildLookup<T extends { id: string }>(items: T[]) {
 export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
   const { battleState, isLoading, error: pollingError, lastUpdatedAt, refresh } = useBattlePolling();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>(["gpt-4.1"]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void getAvailableModels()
+      .then((models) => {
+        if (isMounted && models.length > 0) {
+          setAvailableModels(models);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAvailableModels(["gpt-4.1"]);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const competitorsById = useMemo(
     () => buildLookup(battleState?.competitors ?? []),
@@ -70,13 +92,13 @@ export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
     });
   };
 
-  const handleConfigureBattle = async (competitorCount: number) => {
+  const handleConfigureBattle = async (competitorConfigs: BattleCompetitorConfig[]) => {
     if (!isAdmin) {
       return;
     }
 
     await runAction(async () => {
-      await configureBattle({ competitorCount }, session.adminPassword);
+      await configureBattle({ competitorConfigs }, session.adminPassword);
     });
   };
 
@@ -122,7 +144,7 @@ export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
           <p className="eyebrow">Battle Arena</p>
           <h1>AI Coding Agent Battle Royale</h1>
           <p className="arena-topbar__lede">
-            Live battle loop with mock agents, queued challenges, and elimination rounds.
+            Live battle loop with agents, queued challenges, and elimination rounds.
           </p>
         </div>
 
@@ -186,6 +208,7 @@ export function BattleArenaPage({ session, onLogout }: BattleArenaPageProps) {
             <AdminPanel
               battleState={battleState}
               disabled={false}
+              availableModels={availableModels}
               onConfigure={handleConfigureBattle}
               onStart={handleStartBattle}
               onReset={handleResetBattle}

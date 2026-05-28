@@ -75,7 +75,7 @@ export function BattleStatusPanel({
       <div className="status-strip">
         <div>
           <p className="label">Configured competitors</p>
-          <p>{battleState?.config.competitorCount ?? ""}</p>
+          <p>{battleState?.config.competitorConfigs?.length ?? ""}</p>
         </div>
         <div>
           <p className="label">Started</p>
