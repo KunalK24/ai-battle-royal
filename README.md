@@ -9,7 +9,7 @@ Spectators submit challenges with known answers. Admins configure AI competitors
 * Frontend: `https://ai-battle-royal-frontend-production.up.railway.app/`
 * Backend health check: `https://ai-battle-royal-production.up.railway.app/api/health`
 * Admin username: `admin`
-* Admin password: `dev-admin-password`
+* Admin password: `<your-admin-password>`
 
 ## Features
 
@@ -153,7 +153,7 @@ NODE_ENV=production
 PORT=3000
 
 # Admin
-ADMIN_PASSWORD=dev-admin-password
+ADMIN_PASSWORD=<your-admin-password>
 
 # Agent mode
 AGENT_MODE=mock
@@ -360,12 +360,11 @@ A production system should run generated code inside a stronger isolation bounda
 * Multiple battle rooms
 * WebSocket/SSE live updates
 * Stronger code execution sandbox
-* Better agent personalities
+* Better/Customizable agent personalities
 * More detailed agent reasoning visualization
 * Challenge validation/moderation
 * Real user accounts
 * Leaderboards
-* Dockerized backend with guaranteed Python support for deployed LLM mode
 
 ## Notes
 
