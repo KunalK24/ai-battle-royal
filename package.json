@@ -1,0 +1,25 @@
+{
+  "name": "ai-battle-royal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "cd apps/server && npm install && cd ../client && npm install",
+    "dev:server": "cd apps/server && npm run dev",
+    "dev:client": "cd apps/client && npm run dev",
+    "build": "cd apps/server && npm run build && cd ../client && npm run build",
+    "test": "cd apps/server && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KunalK24/ai-battle-royal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KunalK24/ai-battle-royal/issues"
+  },
+  "homepage": "https://github.com/KunalK24/ai-battle-royal#readme"
+}
