@@ -2,8 +2,6 @@
 
 ## Project overview
 
-This repository is for a 24-hour take-home interview project for Ivo.
-
 The assignment is to build an **AI Coding Agent Battle Royale**: a browser-based spectator game where humans submit programming challenges and AI coding agents compete to answer them. Humans do not compete directly. Humans only spectate, submit challenges, and, if they are an admin, configure/start/reset the battle.
 
 The product should feel like a lightweight live game. An admin starts a battle with a configured number of AI competitors. Spectators submit programming challenges with known answers. For each challenge, a subset of AI competitors is selected for a skirmish. The selected agents race to solve the challenge by generating and executing code. Competitors are eliminated based on correctness and speed until one winner remains.
